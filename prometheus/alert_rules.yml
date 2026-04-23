@@ -1,3 +1,72 @@
 groups:
-  - name: placeholder
-    rules: []
+  - name: security_alerts
+    rules:
+
+      - alert: BruteForceDetected
+        expr: increase(failed_logins_total[2m]) > 5
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Brute force attack detected"
+          description: "More than 5 failed login attempts in the last 2 minutes."
+
+      - alert: HighErrorRate
+        expr: rate(flask_http_request_total{status="500"}[2m]) > 0.2
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High HTTP 500 error rate"
+          description: "More than 20% of requests are returning 500 errors."
+
+      - alert: UnauthorizedAccessSpike
+        expr: increase(flask_http_request_total{status="401"}[2m]) > 10
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Spike in unauthorized access attempts"
+          description: "More than 10 unauthorized requests in 2 minutes."
+
+  - name: performance_alerts
+    rules:
+
+      - alert: SlowResponseTime
+        expr: flask_http_request_duration_seconds{quantile="0.9"} > 2
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow response time detected"
+          description: "90th percentile response time is above 2 seconds."
+
+      - alert: AppDown
+        expr: up{job="flask-app"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Flask application is down"
+          description: "The Flask app has been unreachable for more than 30 seconds."
+
+      - alert: HighRequestRate
+        expr: rate(flask_http_request_total[1m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Unusually high request rate"
+          description: "More than 10 requests per second for 2 minutes — possible DDoS."
+
+  - name: availability_alerts
+    rules:
+
+      - alert: PrometheusTargetDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "A monitored target is down"
+          description: "Target {{ $labels.job }} is not reachable."

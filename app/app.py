@@ -8,6 +8,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.flask import FlaskInstrumentor
 from opentelemetry.sdk.resources import Resource
+from prometheus_client import Counter, Gauge
 
 # ── OpenTelemetry setup ──────────────────────────────────────────────
 resource = Resource.create({"service.name": "flask-app"})
@@ -22,12 +23,12 @@ app = Flask(__name__)
 FlaskInstrumentor().instrument_app(app)
 metrics = PrometheusMetrics(app)
 
-# Custom metrics
-failed_logins = metrics.counter(
+# ── Custom metrics (using prometheus_client directly) ────────────────
+failed_logins = Counter(
     'failed_logins_total',
     'Total number of failed login attempts'
 )
-active_users = metrics.gauge(
+active_users = Gauge(
     'active_users',
     'Number of active users'
 )
@@ -43,7 +44,6 @@ def login():
     username = data.get("username", "")
     password = data.get("password", "")
 
-    # Simulate failed login
     if username != "admin" or password != "secret":
         failed_logins.inc()
         return jsonify({"error": "Invalid credentials"}), 401
@@ -53,14 +53,12 @@ def login():
 
 @app.route("/slow")
 def slow():
-    # Simulate a slow endpoint
     with tracer.start_as_current_span("slow-operation"):
         time.sleep(random.uniform(1, 3))
     return jsonify({"message": "Slow response done"})
 
 @app.route("/error")
 def error():
-    # Simulate random errors
     if random.random() < 0.7:
         return jsonify({"error": "Internal Server Error"}), 500
     return jsonify({"message": "Lucky, no error this time"})
