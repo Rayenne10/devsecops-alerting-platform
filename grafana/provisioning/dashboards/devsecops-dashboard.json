@@ -1,0 +1,167 @@
+{
+  "title": "DevSecOps Alerting Dashboard",
+  "uid": "devsecops-main",
+  "timezone": "browser",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "5s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Failed Login Attempts (Total)",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "failed_logins_total",
+          "legendFormat": "Failed Logins"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 20 }
+            ]
+          },
+          "color": { "mode": "thresholds" }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Failed Logins Rate (per minute)",
+      "type": "timeseries",
+      "gridPos": { "x": 6, "y": 0, "w": 18, "h": 4 },
+      "targets": [
+        {
+          "expr": "rate(failed_logins_total[1m]) * 60",
+          "legendFormat": "Failed Logins/min"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "red" }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "HTTP Request Rate by Status",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 6 },
+      "targets": [
+        {
+          "expr": "rate(flask_http_request_total[1m])",
+          "legendFormat": "{{status}} - {{path}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Active Users",
+      "type": "gauge",
+      "gridPos": { "x": 12, "y": 4, "w": 6, "h": 6 },
+      "targets": [
+        {
+          "expr": "active_users",
+          "legendFormat": "Active Users"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 50 },
+              { "color": "red", "value": 80 }
+            ]
+          },
+          "color": { "mode": "thresholds" }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "App Health (Up/Down)",
+      "type": "stat",
+      "gridPos": { "x": 18, "y": 4, "w": 6, "h": 6 },
+      "targets": [
+        {
+          "expr": "up{job=\"flask-app\"}",
+          "legendFormat": "Flask App"
+        }
+      ],
+      "options": {
+        "colorMode": "background"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ],
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Response Time (90th percentile)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 10, "w": 12, "h": 6 },
+      "targets": [
+        {
+          "expr": "flask_http_request_duration_seconds{quantile=\"0.9\"}",
+          "legendFormat": "p90 response time"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 2 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "401 Unauthorized Requests",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 10, "w": 12, "h": 6 },
+      "targets": [
+        {
+          "expr": "rate(flask_http_request_total{status=\"401\"}[1m]) * 60",
+          "legendFormat": "401 requests/min"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "orange" }
+        }
+      }
+    }
+  ]
+}
