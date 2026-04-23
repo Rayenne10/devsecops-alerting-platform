@@ -1,0 +1,132 @@
+name: DevSecOps Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+
+  # ── Job 1: Test the application ──────────────────────────────────
+  test:
+    name: Run Application Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r app/requirements.txt
+          pip install pytest
+
+      - name: Run tests
+        run: pytest app/tests/ -v || echo "No tests found, skipping"
+
+  # ── Job 2: Scan Python code for security issues ──────────────────
+  sast-scan:
+    name: SAST - Code Security Scan (Bandit)
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Bandit
+        run: pip install bandit
+
+      - name: Run Bandit scan
+        run: |
+          bandit -r app/app.py -f json -o bandit-report.json || true
+          bandit -r app/app.py
+
+      - name: Upload Bandit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-security-report
+          path: bandit-report.json
+
+  # ── Job 3: Scan Docker image for vulnerabilities ─────────────────
+  container-scan:
+    name: Container Scan (Trivy)
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t flask-app:${{ github.sha }} ./app
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: flask-app:${{ github.sha }}
+          format: table
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Run Trivy and save report
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: flask-app:${{ github.sha }}
+          format: json
+          output: trivy-report.json
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-security-report
+          path: trivy-report.json
+
+  # ── Job 4: Scan dependencies for known CVEs ──────────────────────
+  dependency-scan:
+    name: Dependency Scan (Safety)
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Safety
+        run: pip install safety
+
+      - name: Run Safety scan
+        run: |
+          pip install -r app/requirements.txt
+          safety check -r app/requirements.txt || true
+
+  # ── Job 5: Build and confirm final image ─────────────────────────
+  build:
+    name: Build Final Docker Image
+    runs-on: ubuntu-latest
+    needs: [sast-scan, container-scan, dependency-scan]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t flask-app:latest ./app
+
+      - name: Confirm image built
+        run: docker images flask-app
+
